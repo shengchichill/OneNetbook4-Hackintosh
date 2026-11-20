@@ -1,0 +1,18 @@
+# downloads, extracted deps, logs
+build/
+# build outputs (scripts/build-efi.py)
+EFI/
+EFI-usb/
+EFI-public/
+# generated SMBIOS and machine-specific paths: never commit
+secrets/
+hwdump/
+.DS_Store
+__pycache__/
+# compiled tools
+tools/hidsniff/hidsniff
+tools/hidsniff/hidrate
+tools/gpucheck/gpucheck
+tools/gpucheck/vtdecode
+tools/gpucheck/vtxfer
+tools/blset/blset

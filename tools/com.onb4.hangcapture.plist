@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>com.onb4.hangcapture</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/bin/bash</string>
+		<string>/Users/YOURNAME/OneNetbook4-Hackintosh/tools/onb4-hang-capture.sh</string>
+	</array>
+	<key>EnvironmentVariables</key>
+	<dict>
+		<key>ONB4_USER</key>
+		<string>YOURNAME</string>
+	</dict>
+	<key>RunAtLoad</key>
+	<true/>
+	<key>KeepAlive</key>
+	<true/>
+	<key>StandardErrorPath</key>
+	<string>/var/log/onb4-hangcapture.log</string>
+</dict>
+</plist>
