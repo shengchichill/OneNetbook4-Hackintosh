@@ -16,6 +16,15 @@ why it happened and what the EFI does about it. Values are from this unit (BIOS 
   sends one invalid key at start, which cancels the timeout; `KeyFiltering=true` drops it.
 - **BootOrder**: through OpenCore, `efibootmgr` in Linux sees the `RequestBootVarRouting` copy of BootOrder, not the real one.
   The AMI firmware also deletes boot entries for USB devices that are not plugged in. Use the BIOS "Boot Override" to boot a USB stick.
+- **Kexts vanished from the ESP after booting Linux (dual boot)**: write the ESP from Linux, not from macOS.
+  After copying `EFI/OC` to the shared ESP from macOS 26.7.2, the next Fedora boot ran `fsck.fat -a` on `/boot/efi`
+  (fstab pass `2`), which reported `Duplicate directory entry` and renamed `VoodooPS2Keyboard.kext` and `VoodooI2CServices.kext`
+  (inside the `PlugIns` folders) to `FSCK0000.000`. OpenCore then could not find them: no keyboard, no touchpad/touchscreen.
+  The raw directory entries showed why: macOS had given two siblings the same 8.3 short name (`VOODOO~2.KEX` for both the
+  Trackpad and Keyboard plug-ins; `fsck.fat` compares short names). Linux's vfat driver generates unique ones (`~1`, `~2`, …).
+  The same happened earlier to OpenCore log folders written to the ESP. Not reproduced on a newer macOS, so it may be specific
+  to this version or to the order files were written. If you must write the ESP from macOS, run `fsck.fat -n` on it
+  (dosfstools) before booting Linux; to repair, rename `FSCK0000.000` back from Linux, or copy `EFI/OC` again from Linux.
 
 ## Graphics (WhateverXe 0.8.3 + `patches/WhateverXe-0.8.3-onb4.patch`)
 
