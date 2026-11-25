@@ -51,6 +51,23 @@ I2C1_GPIO_IRQ = True
 # Fedora hid-multitouch 用編號配對 slot，所以正常。這台報告一定依序送 → 一律用 current_report-1 就對。
 # Patch：handleDigitizerReport 的 `cmp esi,eax; je`（actual_index == current_report-1 才不換）→ `jmp`（永遠不換）。
 TS_CONTACT_ID_FIX = True
+# 2026-11-24：闔蓋不睡眠修正（2026-11-25 起預設開，內建 ESP 已部署）。EC 事件 _Q0C/_Q0D 與 LID0._LID 呼叫的 ECRD 在 macOS ACPICA
+# 回 AE_AML_OPERAND_TYPE 中止，Notify(LID0) 沒送出。SSDT-LID 在 Darwin 下直接讀 LSTE 並通知 LID0。見 ACPI/SSDT-LID.dsl。
+LID_FIX = True
+LID_SSDT = "SSDT-LID.aml"
+# (Comment, Find, Replace)；find 含 method 標頭，DSDT 內各唯一（hwdump 20261103 dsdt.dat 驗證）
+LID_PATCHES = [
+    ("_Q0C to XQ0C lid event (pairs with SSDT-LID)", "142b5f51304300", "142b5851304300"),
+    ("_Q0D to XQ0D lid event (pairs with SSDT-LID)", "142b5f51304400", "142b5851304400"),
+    ("LID0._LID to XLID (pairs with SSDT-LID)", "14105f4c494400", "1410584c494400"),
+]
+
+
+def lid_acpi_patches():
+    return [{"Base": "", "BaseSkip": 0, "Comment": c, "Count": 1, "Enabled": True,
+             "Find": bytes.fromhex(f), "Limit": 0, "Mask": b"", "OemTableId": b"",
+             "Replace": bytes.fromhex(r), "ReplaceMask": b"", "Skip": 0, "TableLength": 0,
+             "TableSignature": b"DSDT"} for c, f, r in LID_PATCHES]
 
 # ---- kext：(來源資料夾, BundlePath, Enabled, 註解)；順序即載入順序 ----
 KEXTS = [
@@ -58,7 +75,7 @@ KEXTS = [
     ("VirtualSMC-1.3.8-RELEASE/Kexts", "VirtualSMC.kext", True, ""),
     ("VirtualSMC-1.3.8-RELEASE/Kexts", "SMCBatteryManager.kext", True, ""),
     ("VirtualSMC-1.3.8-RELEASE/Kexts", "SMCProcessor.kext", True, ""),
-    ("WhateverXe-0.7.0-onb4quiet26-RELEASE", "WhateverXe.kext", True, "Iris Xe 9A40, local: link-rate clamp + 80EU/6-bank + VBT PWM + DDI A HPD + PHY A IREFGEN/ODCC/DCC on wake + eDP max lanes + TPS3 + TGL DPLL CFGCR address fix + wake trace v12 + PHY dump + AUX trace + AUX well exp + live display regs + DCC linux switch + HBR cap switch + link training retry + scanline sync trace + GT reg snapshots + render regs restore after GPU reset + ELSP pending wait + scheduler trace v2 quiet mode"),
+    ("WhateverXe-0.8.3-onb4-RELEASE", "WhateverXe.kext", True, "Iris Xe 9A40, WEX 0.8.3 + local patch (patches/WhateverXe-0.8.3-onb4.patch, b857865); pairs with Graphics 0.4.4 in /Library; -onb4noccs"),
     ("AMFIPass-v1.4.1-Mod-RELEASE", "AMFIPass.kext", True, "Mod build required by WhateverXe"),
     ("ECEnabler-1.0.6-RELEASE", "ECEnabler.kext", True, "16-bit EC battery fields"),
     ("AppleALC-1.9.8-RELEASE", "AppleALC.kext", True, "ALC269VC"),
@@ -120,7 +137,7 @@ USB_MAP = {
 
 SSDTS = ["SSDT-PLUG.aml", "SSDT-EC-USBX.aml", "SSDT-AWAC.aml",
          "SSDT-PMC.aml", "SSDT-PNLF.aml", "SSDT-GPRW.aml", "SSDT-ADP1.aml",
-         "SSDT-BRTKEY.aml"]
+         "SSDT-BRTKEY.aml"] + ([LID_SSDT] if LID_FIX else [])
 DRIVERS = ["OpenRuntime.efi", "OpenHfsPlus.efi", "ResetNvramEntry.efi", "OpenCanopy.efi",
            "FirmwareSettingsEntry.efi"]  # 選單按空白鍵顯示「進 BIOS」（2026-11-19）
 # OpenCanopy 圖形選單資源（acidanthera/OcBinaryData，使用者 2026-11-19 clone 到 build/deps/）
@@ -128,7 +145,7 @@ OCBIN = ROOT / "build/deps/OcBinaryData/Resources"
 PICKER_THEME = "Acidanthera/GoldenGate"   # 另有 Chardonnay、Syrah
 
 # -btlfxallowanyaddr：BlueToolFixup 放行 Intel BT 位址（AX201 在 Tahoe 位址 NULL、State Off，2026-11-05）
-BOOT_ARGS = ("-v " if USB_VARIANT else "") + "keepsyms=1 debug=0x100 -allow3d -disablegfxfirmware -igfxdvmt -btlfxallowanyaddr -nodisplaysleepDC6 -onb4ltretry"
+BOOT_ARGS = ("-v " if USB_VARIANT else "") + "keepsyms=1 debug=0x100 -allow3d -disablegfxfirmware -igfxdvmt -btlfxallowanyaddr -nodisplaysleepDC6 -onb4ltretry -onb4noccs"  # -onb4noccs：WEX 0.8.3 本地 patch 的開關，停用 CCS multi-context（2026-11-25 內建部署）
 
 
 def smbios():
@@ -254,6 +271,8 @@ def main():
             "Enabled": True, "Find": bytes.fromhex("14165f5130" + q.encode().hex()[2:] + "00"), "Limit": 0,
             "Mask": b"", "OemTableId": b"", "Replace": bytes.fromhex("1416585130" + q.encode().hex()[2:] + "00"),
             "ReplaceMask": b"", "Skip": 0, "TableLength": 0, "TableSignature": b"DSDT"})
+    if LID_FIX:
+        cfg["ACPI"]["Patch"] += lid_acpi_patches()
 
     # ---- Booter（參考 XPS13Plus Tahoe 設定，Tiger Lake 適用）----
     # DevirtualiseMmio 不可動到 PCIe ECAM 與 flash 區段，否則停在 EXITBS:START（2026-11-03 實測）

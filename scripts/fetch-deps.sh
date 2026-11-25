@@ -46,17 +46,18 @@ V=VoodooI2C-6be653a2
   gh run download 40157687159 -R VoodooI2C/VoodooI2C -n "$V" -D "$D/$V"
 
 # 解壓
-# 只重建 zip 對應的資料夾：build/extract 裡還有本地編的 WEX（WhateverXe-0.7.0-onb4*），不可整個刪。
+# 只重建 zip 對應的資料夾：build/extract 裡還有本地編的 WEX（WhateverXe-0.*-onb4*），不可整個刪。
 X=build/extract; mkdir -p "$X"
 for z in "$D"/*.zip; do n=$(basename "$z" .zip); rm -rf "${X:?}/$n"; mkdir -p "$X/$n"; unzip -qo "$z" -d "$X/$n"; done
 rm -rf "${X:?}/$V"; mkdir -p "$X/$V"; unzip -qo "$D/$V/Release/VoodooI2C-2.9.1-RELEASE.zip" -d "$X/$V"
 # 手動項目（build-efi.py 需要，這個腳本抓不到）：
-#   1. build/extract/WhateverXe-0.7.0-onb4quiet26-RELEASE/WhateverXe.kext
-#      = b00t0x/WhateverXe d0b7fb6（patches/WhateverXe-0.7.0-onb4.base.txt）＋ patches/WhateverXe-0.7.0-onb4.patch，Xcode RELEASE 編譯
+#   1. build/extract/WhateverXe-0.8.3-onb4-RELEASE/WhateverXe.kext
+#      = b00t0x/WhateverXe f26a368（patches/WhateverXe-0.8.3-onb4.base.txt）＋ patches/WhateverXe-0.8.3-onb4.patch，Xcode 編譯
+#      （系統 /Library 要搭 WhateverXe Graphics 0.4.4；舊的 0.7.0 版見 patches/WhateverXe-0.7.0-onb4.*）
 #   2. build/extract/IntelBluetooth-v2.5.1/{IntelBluetoothFirmware,IntelBTPatcher}.kext
 #      = lshbluesky 的 IntelBluetoothFirmware fork 2.5.1（Tahoe 支援；上游 v2.4.0 在 Tahoe 不能用）
 missing=0
-for k in "$X/WhateverXe-0.7.0-onb4quiet26-RELEASE/WhateverXe.kext" \
+for k in "$X/WhateverXe-0.8.3-onb4-RELEASE/WhateverXe.kext" \
          "$X/IntelBluetooth-v2.5.1/IntelBluetoothFirmware.kext" "$X/IntelBluetooth-v2.5.1/IntelBTPatcher.kext"; do
   [ -d "$k" ] || { echo "MISSING (manual): $k"; missing=1; }
 done

@@ -40,7 +40,7 @@ BIOS: AMI 5.19 (2021-07-15). CFG Lock is on (`AppleXcpmCfgLock`), Secure Boot of
 - H.264 / HEVC 8/10-bit **hardware decode** (needs the optional VA shim in [`tools/va-shim/`](tools/va-shim/); colour conversion runs on the CPU)
 - Touchpad and touchscreen on GPIO interrupts, including a fix for touchscreen taps being dropped after idle
 - Wi-Fi, Bluetooth (headphones tested), battery percentage, AC status
-- S3 sleep / wake with the lid or the menu, display sleep
+- S3 sleep / wake from the menu and with the lid (lid needs `SSDT-LID`, see notes), display sleep
 - OpenCanopy boot picker (GoldenGate theme, custom Apple/Fedora icons) with a Fedora entry
 
 ## What does not work
@@ -62,16 +62,18 @@ BIOS: AMI 5.19 (2021-07-15). CFG Lock is on (`AppleXcpmCfgLock`), Secure Boot of
    and fill `PlatformInfo > Generic` (`SystemSerialNumber`, `MLB`, `SystemUUID`, `ROM`). The release ships OpenCore's placeholder values.
 3. The `Fedora` entry under `Misc > Entries` is disabled. To use it, set `Path` to the full device path of your
    `\EFI\fedora\shimx64.efi` (from `efibootmgr -v` in Linux) and set `Enabled` to true.
-4. After installing macOS, install [WhateverXe-Graphics 0.4.0](https://github.com/b00t0x/WhateverXe-Graphics) (Metal driver) and
+4. After installing macOS, install [WhateverXe-Graphics](https://github.com/b00t0x/WhateverXe-Graphics) (Metal driver) and
    [HeliPort](https://github.com/OpenIntelWireless/HeliPort) (Wi-Fi UI).
+   Match the Graphics version to the kext: WhateverXe 0.8.3 (current `main`) → Graphics **0.4.4**;
+   WhateverXe 0.7.0 (release `v2026.11.20`) → Graphics 0.4.0.
 
 ### Option B — build it yourself
 
 ```bash
 bash scripts/fetch-deps.sh          # OpenCore 1.0.8 and kexts into build/deps, extracted to build/extract
 # manual items (fetch-deps prints what is missing):
-#  - WhateverXe 0.7.0 (b00t0x/WhateverXe @ d0b7fb6) + patches/WhateverXe-0.7.0-onb4.patch, Xcode RELEASE build
-#    -> build/extract/WhateverXe-0.7.0-onb4quiet26-RELEASE/WhateverXe.kext
+#  - WhateverXe 0.8.3 (b00t0x/WhateverXe @ f26a368) + patches/WhateverXe-0.8.3-onb4.patch, Xcode build
+#    -> build/extract/WhateverXe-0.8.3-onb4-RELEASE/WhateverXe.kext
 #  - IntelBluetoothFirmware 2.5.1 (lshbluesky fork) -> build/extract/IntelBluetooth-v2.5.1/
 #  - OcBinaryData (acidanthera/OcBinaryData) cloned to build/deps/OcBinaryData
 python3 scripts/build-efi.py          # daily build -> EFI/       (RELEASE, Apple logo boot)
@@ -98,6 +100,7 @@ The Kernel > Patch entries for VoodooGPIO / VoodooI2CHID match the binaries of V
 | `-allow3d -disablegfxfirmware` | WhateverXe |
 | `-nodisplaysleepDC6` | Apple TGL framebuffer: do not enter DC6 on display sleep (otherwise the panel's AUX channel stops answering and the screen never comes back) |
 | `-onb4ltretry` | patched WhateverXe: retry eDP link training (S3 wake) |
+| `-onb4noccs` | patched WhateverXe 0.8.3: disable CCS multi-context (added while chasing GPU hangs, see notes) |
 | `-btlfxallowanyaddr` | BlueToolFixup: accept the AX201 address on Tahoe |
 | `keepsyms=1 debug=0x100` | readable panics |
 
@@ -107,8 +110,8 @@ When booting gets stuck, hold **Cmd+V** (Win+V) in the picker before choosing ma
 
 | Path | Contents |
 |---|---|
-| `ACPI/` | SSDTs (`.dsl` source + compiled `.aml`): ADP1, AWAC, BRTKEY, EC-USBX, GPRW, PLUG, PMC, PNLF |
-| `patches/` | WhateverXe 0.7.0 patch (functional fixes + diagnostics) and its base commit |
+| `ACPI/` | SSDTs (`.dsl` source + compiled `.aml`): ADP1, AWAC, BRTKEY, EC-USBX, GPRW, LID, PLUG, PMC, PNLF |
+| `patches/` | WhateverXe 0.8.3 patch (current) and the older 0.7.0 patch (functional fixes + diagnostics), each with its base commit |
 | `kexts/` | `XHCI-unsupported.kext` (RehabMan injector with `0xa0ed8086` added) |
 | `resources/picker/` | Apple / Fedora icons for OpenCanopy (+ SVG sources) |
 | `scripts/` | `build-efi.py`, `fetch-deps.sh`, `vbt-edp.py` (VBT eDP parser), `onb4-hwdump.sh` (hardware dump in Linux) |

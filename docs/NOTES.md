@@ -17,8 +17,10 @@ why it happened and what the EFI does about it. Values are from this unit (BIOS 
 - **BootOrder**: through OpenCore, `efibootmgr` in Linux sees the `RequestBootVarRouting` copy of BootOrder, not the real one.
   The AMI firmware also deletes boot entries for USB devices that are not plugged in. Use the BIOS "Boot Override" to boot a USB stick.
 
-## Graphics (WhateverXe + `patches/WhateverXe-0.7.0-onb4.patch`)
+## Graphics (WhateverXe 0.8.3 + `patches/WhateverXe-0.8.3-onb4.patch`)
 
+The 0.8.3 patch is a port of the 0.7.0 one (`patches/WhateverXe-0.7.0-onb4.patch`) plus `-onb4noccs`.
+WhateverXe 0.8.3 needs WhateverXe-Graphics **0.4.4** in `/Library` (0.7.0 pairs with 0.4.0).
 Functional changes in the patch (on by default unless noted):
 
 - **eDP link rate**: the panel is eDP 1.4 with a link-rate table; clamp to the rates it actually lists.
@@ -30,6 +32,10 @@ Functional changes in the patch (on by default unless noted):
 - **Link-training retry** (`-onb4ltretry`): one random lane sometimes fails EQ (no symbol lock) at boot, S3 wake or DPMS; retrying works.
 - **Render register restore after GPU reset**: Apple's reset list is the Gen9 one (19 registers); L3CC and others are lost after a reset.
 - Diagnostics exported to ioreg (wake trace, AUX trace, PHY dump, GT register snapshots, scheduler trace); parsers are in `tools/`.
+- **`-onb4noccs`** (0.8.3 only, off unless the boot-arg is set): disables multi-context on the compute command streamer (CCS).
+  Added while chasing GPU hangs that were reproducible with `mediaanalysisd` (Photos analysis) running; not proven to be the fix,
+  since with `mediaanalysisd` disabled no hang has been seen with either 0.4.0 or 0.4.4.
+- **WindowServer memory**: with Graphics 0.4.0 WindowServer grew to ~2 GB within 17 minutes of boot; with 0.4.4 it stays around 100–170 MB.
 
 Other display fixes:
 
@@ -64,6 +70,10 @@ Other display fixes:
   and SMCBatteryManager needs both battery and AC. `SSDT-ADP1` + rename the whole `_STA` method to `XSTA`.
 - **Brightness keys**: Fn+F4/F5 are EC queries `_Q04`/`_Q05` (ACPI video notifications, not scan codes).
   `SSDT-BRTKEY` + renames notify `PS2K` with `0x0405`/`0x0406`.
+- **Lid close did not sleep**: the EC events `_Q0C`/`_Q0D` and `LID0._LID` start with `ECRD(RefOf(LSTE))`, which fails in macOS's
+  ACPICA (`AE_AML_OPERAND_TYPE`), so `Notify(LID0, 0x80)` is never sent (Linux is fine). `SSDT-LID` + renames `_Q0C`→`XQ0C`,
+  `_Q0D`→`XQ0D`, `_LID`→`XLID`: under Darwin it reads `LSTE` directly and notifies `LID0` (`LID_FIX` in `build-efi.py`).
+  One `_LID` evaluation still fails early in boot (EC region handler not installed yet); harmless.
 - **Clock 8 hours fast in macOS**: Fedora was set to keep the RTC in local time. `timedatectl set-local-rtc 0` in Linux.
 - **Hibernation** (unsolved). Findings so far:
   1. With `standby 0` the platform chooses DeepIdle (`sleep type 7`) and never writes the image; tests need `standby 1`.
